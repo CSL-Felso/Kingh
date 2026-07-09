@@ -1,0 +1,196 @@
+-- [[ SERVIÇOS PRINCIPAIS ]]
+local TweenService = game:GetService("TweenService")
+local UIS = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+-- Limpeza para não duplicar a UI ao re-executar
+pcall(function()
+    CoreGui:FindFirstChild("BaseUI_Custom"):Destroy()
+end)
+
+-- [[ PRINCIPAL (CONTAINER) ]]
+local gui = Instance.new("ScreenGui")
+gui.Name = "BaseUI_Custom"
+gui.ResetOnSpawn = false
+gui.Parent = CoreGui
+
+-- Janela Principal
+local main = Instance.new("Frame")
+main.Size = UDim2.fromOffset(0, 0) -- Começa zerado para a animação de abertura
+main.Position = UDim2.new(.5, -125, .5, -150)
+main.BackgroundColor3 = Color3.fromRGB(44, 30, 16)
+main.BorderSizePixel = 0
+main.Parent = gui
+
+-- Borda arredondada e contorno
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
+local stroke = Instance.new("UIStroke", main)
+stroke.Color = Color3.fromRGB(255, 181, 52)
+stroke.Thickness = 2.5
+
+-- [[ BARRA DE TOPO (ARRASTÁVEL) ]]
+local top = Instance.new("Frame")
+top.Size = UDim2.new(1, 0, 0, 40)
+top.BackgroundColor3 = Color3.fromRGB(255, 231, 106)
+top.BorderSizePixel = 0
+top.Parent = main
+
+Instance.new("UICorner", top).CornerRadius = UDim.new(0, 12)
+
+-- Correção visual para o arredondamento inferior da barra de topo
+local fix = Instance.new("Frame")
+fix.Size = UDim2.new(1, 0, 0, 10)
+fix.Position = UDim2.new(0, 0, 1, -10)
+fix.BackgroundColor3 = top.BackgroundColor3
+fix.BorderSizePixel = 0
+fix.Parent = top
+
+-- Título
+local title = Instance.new("TextLabel")
+title.BackgroundTransparency = 1
+title.Size = UDim2.new(0, 150, 1, 0)
+title.Position = UDim2.new(0, 12, 0, 0)
+title.Font = Enum.Font.GothamBold
+title.Text = "MEU MENU"
+title.TextSize = 18
+title.TextColor3 = Color3.new(0, 0, 0)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = top
+
+-- Botão Minimizar
+local minimize = Instance.new("TextButton")
+minimize.Size = UDim2.fromOffset(30, 30)
+minimize.Position = UDim2.new(1, -65, 0, 5)
+minimize.BackgroundTransparency = 1
+minimize.Font = Enum.Font.GothamBlack
+minimize.Text = "—"
+minimize.TextSize = 24
+minimize.TextColor3 = Color3.new(0, 0, 0)
+minimize.Parent = top
+
+-- Botão Fechar
+local close = Instance.new("TextButton")
+close.Size = UDim2.fromOffset(30, 30)
+close.Position = UDim2.new(1, -35, 0, 5)
+close.BackgroundTransparency = 1
+close.Font = Enum.Font.GothamBlack
+close.Text = "✕"
+close.TextSize = 20
+close.TextColor3 = Color3.new(0, 0, 0)
+close.Parent = top
+
+-- [[ ÁREA DE CONTEÚDO (ONDE VOCÊ VAI COLOCAR SEUS BOTÕES) ]]
+local content = Instance.new("Frame")
+content.BackgroundTransparency = 1
+content.Size = UDim2.new(1, -16, 1, -52)
+content.Position = UDim2.new(0, 8, 0, 46)
+content.Parent = main
+
+-- ScrollingFrame para os elementos não cortarem a tela
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, 0, 1, 0)
+scroll.CanvasSize = UDim2.new(0, 0, 0, 400) -- Aumente aqui se colocar muitas funções
+scroll.ScrollBarThickness = 5
+scroll.ScrollBarImageColor3 = Color3.fromRGB(168, 113, 19)
+scroll.BackgroundColor3 = Color3.fromRGB(31, 20, 10)
+scroll.BorderSizePixel = 0
+scroll.Parent = content
+Instance.new("UICorner", scroll).CornerRadius = UDim.new(0, 8)
+
+-- Alinhamento automático (Lista os itens de cima para baixo)
+local listLayout = Instance.new("UIListLayout", scroll)
+listLayout.Padding = UDim.new(0, 6)
+listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local padding = Instance.new("UIPadding", scroll)
+padding.PaddingTop = UDim.new(0, 6)
+
+
+-- ====================================================================
+-- [[ LÓGICAS E ANIMAÇÕES (SISTEMA INTERNO) ]]
+-- ====================================================================
+
+-- Sistema Nativo para Arrastar a Janela (PC e Mobile)
+local dragging, startPos, startMouse
+top.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        startMouse = i.Position
+        startPos = main.Position
+    end
+end)
+
+UIS.InputChanged:Connect(function(i)
+    if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+        local delta = i.Position - startMouse
+        main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+UIS.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then 
+        dragging = false 
+    end
+end)
+
+-- Mecânica do Botão Minimizar
+local minimized = false
+minimize.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    if minimized then  
+        TweenService:Create(content, TweenInfo.new(.2), {Size = UDim2.new(1, -16, 0, 0)}):Play()  
+        TweenService:Create(main, TweenInfo.new(.2), {Size = UDim2.fromOffset(250, 48)}):Play()  
+    else  
+        TweenService:Create(main, TweenInfo.new(.2), {Size = UDim2.fromOffset(250, 300)}):Play()  
+        task.wait(.05)  
+        TweenService:Create(content, TweenInfo.new(.2), {Size = UDim2.new(1, -16, 1, -52)}):Play()  
+    end
+end)
+
+-- Mecânica do Botão Fechar (Destrói a UI com Fade Out)
+close.MouseButton1Click:Connect(function()
+    TweenService:Create(main, TweenInfo.new(.15), {Size = UDim2.fromOffset(0, 0)}):Play()
+    task.wait(.15)
+    gui:Destroy()
+end)
+
+-- Animação de Entrada ao Executar (Abre elegantemente)
+TweenService:Create(main, TweenInfo.new(.35, Enum.EasingStyle.Back), {Size = UDim2.fromOffset(250, 300)}):Play()
+
+-- [[ BOTÃO CUSTOMIZADO ]]
+local meuBotao = Instance.new("TextButton")
+meuBotao.Name = "ExecuteInfinityYield"
+meuBotao.Size = UDim2.new(1, -12, 0, 45)             -- Ajustado para a largura do scroll
+meuBotao.BackgroundColor3 = Color3.fromRGB(255, 181, 52) -- Cor dourada do tema
+meuBotao.Text = "Infinity Yield"
+meuBotao.TextColor3 = Color3.fromRGB(44, 30, 16)       -- Texto marrom escuro (contraste)
+meuBotao.Font = Enum.Font.GothamBold
+meuBotao.TextSize = 14
+meuBotao.Parent = scroll                             -- Envia direto para a lista da UI
+
+-- Canto arredondado
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 6)
+corner.Parent = meuBotao
+
+-- Contorno sutil para o botão
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(212, 146, 53)
+stroke.Thickness = 1.5
+stroke.Parent = meuBotao
+
+-- [[ EFEITOS DE HOVER (PASSAR O MOUSE) ]]
+meuBotao.MouseEnter:Connect(function()
+    meuBotao.BackgroundColor3 = Color3.fromRGB(255, 201, 92) -- Clareia ao passar o mouse
+end)
+
+meuBotao.MouseLeave:Connect(function()
+    meuBotao.BackgroundColor3 = Color3.fromRGB(255, 181, 52) -- Volta à cor original
+end)
+
+-- [[ FUNÇÃO DE CLIQUE 
+meuBotao.MouseButton1Click:Connect(function()
+  -- Infinity Yield 
+  loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+end)
