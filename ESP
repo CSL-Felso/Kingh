@@ -1,0 +1,400 @@
+-- [[ CONFIGURAÇÕES DO ESP ]]
+local ESPConfig = {
+    Quadrado = false,
+    Aura = false,
+    Nome = false,
+    Esqueleto = false,
+    Linhas = false,
+    CorGeral = Color3.fromRGB(255, 181, 52),
+    CorAura = Color3.fromRGB(255, 80, 80)
+}
+
+-- [[ SERVIÇOS DO ROBLOX ]]
+local TweenService = game:GetService("TweenService")
+local UIS = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Remove UI antiga se existir
+pcall(function()
+    CoreGui:FindFirstChild("FarmUI"):Destroy()
+end)
+
+-- [[ BASE DA INTERFACE (UI COMPACTA) ]]
+local gui = Instance.new("ScreenGui")
+gui.Name = "FarmUI"
+gui.ResetOnSpawn = false
+gui.Parent = CoreGui
+
+local main = Instance.new("Frame")
+main.Size = UDim2.fromOffset(0, 0)
+main.Position = UDim2.new(.5, -125, .5, -140)
+main.BackgroundColor3 = Color3.fromRGB(44,30,16)
+main.BorderSizePixel = 0
+main.Parent = gui
+
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
+
+local stroke = Instance.new("UIStroke", main)
+stroke.Color = Color3.fromRGB(255, 181, 52)
+stroke.Thickness = 2.5
+
+local top = Instance.new("Frame")
+top.Size = UDim2.new(1, 0, 0, 40)
+top.BackgroundColor3 = Color3.fromRGB(255, 231, 106)
+top.BorderSizePixel = 0
+top.Parent = main
+
+Instance.new("UICorner", top).CornerRadius = UDim.new(0, 12)
+
+local fix = Instance.new("Frame")
+fix.Size = UDim2.new(1, 0, 0, 10)
+fix.Position = UDim2.new(0, 0, 1, -10)
+fix.BackgroundColor3 = top.BackgroundColor3
+fix.BorderSizePixel = 0
+fix.Parent = top
+
+local title = Instance.new("TextLabel")
+title.BackgroundTransparency = 1
+title.Size = UDim2.new(0, 100, 1, 0)
+title.Position = UDim2.new(0, 12, 0, 0)
+title.Font = Enum.Font.GothamBold
+title.Text = "ESP HUB"
+title.TextSize = 18
+title.TextColor3 = Color3.new()
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = top
+
+local minimize = Instance.new("TextButton")
+minimize.Size = UDim2.fromOffset(30, 30)
+minimize.Position = UDim2.new(1, -65, 0, 5)
+minimize.BackgroundTransparency = 1
+minimize.Font = Enum.Font.GothamBlack
+minimize.Text = "—"
+minimize.TextSize = 24
+minimize.TextColor3 = Color3.new()
+minimize.Parent = top
+
+local close = Instance.new("TextButton")
+close.Size = UDim2.fromOffset(30, 30)
+close.Position = UDim2.new(1, -35, 0, 5)
+close.BackgroundTransparency = 1
+close.Font = Enum.Font.GothamBlack
+close.Text = "✕"
+close.TextSize = 20
+close.TextColor3 = Color3.new()
+close.Parent = top
+
+local content = Instance.new("Frame")
+content.BackgroundTransparency = 1
+content.Size = UDim2.new(1, -16, 1, -52)
+content.Position = UDim2.new(0, 8, 0, 46)
+content.Parent = main
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, 0, 1, 0)
+scroll.CanvasSize = UDim2.new(0, 0, 0, 360)
+scroll.ScrollBarThickness = 5
+scroll.ScrollBarImageColor3 = Color3.fromRGB(168, 113, 19)
+scroll.BackgroundColor3 = Color3.fromRGB(31, 20, 10)
+scroll.BorderSizePixel = 0
+scroll.Parent = content
+Instance.new("UICorner", scroll).CornerRadius = UDim.new(0, 8)
+
+local listLayout = Instance.new("UIListLayout", scroll)
+listLayout.Padding = UDim.new(0, 6)
+listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local padding = Instance.new("UIPadding", scroll)
+padding.PaddingTop = UDim.new(0, 6)
+
+-- [[ FUNÇÃO PARA ANIMAR TOGGLE ]]
+local function animarToggle(toggle, knob, status, on)
+    if on then
+        TweenService:Create(toggle, TweenInfo.new(.2), {BackgroundColor3 = Color3.fromRGB(76, 255, 76)}):Play()
+        TweenService:Create(knob, TweenInfo.new(.2), {Position = UDim2.new(1, -21, .5, -9)}):Play()  
+        status.Text = "ON"  
+        status.TextColor3 = Color3.fromRGB(0, 255, 0)  
+    else  
+        TweenService:Create(toggle, TweenInfo.new(.2), {BackgroundColor3 = Color3.fromRGB(90, 90, 90)}):Play()  
+        TweenService:Create(knob, TweenInfo.new(.2), {Position = UDim2.new(0, 3, .5, -9)}):Play()  
+        status.Text = "OFF"  
+        status.TextColor3 = Color3.fromRGB(255, 80, 80)  
+    end
+end
+
+-- [[ GERADOR DE TOGGLES ]]
+local function criarEspToggle(texto, configKey)
+    local holder = Instance.new("Frame")
+    holder.Size = UDim2.new(1, -12, 0, 58)
+    holder.BackgroundColor3 = Color3.fromRGB(255, 180, 73)
+    holder.BorderSizePixel = 0
+    holder.Parent = scroll
+    Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 6)
+
+    local txt = Instance.new("TextLabel")
+    txt.BackgroundTransparency = 1
+    txt.Size = UDim2.new(1, -12, 0, 20)
+    txt.Position = UDim2.new(0, 8, 0, 4)
+    txt.Font = Enum.Font.GothamBold
+    txt.Text = texto
+    txt.TextColor3 = Color3.new()
+    txt.TextSize = 16
+    txt.TextXAlignment = Enum.TextXAlignment.Left
+    txt.Parent = holder
+
+    local toggle = Instance.new("TextButton")
+    toggle.Size = UDim2.fromOffset(70, 24)
+    toggle.Position = UDim2.new(0, 8, 0, 26)
+    toggle.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+    toggle.Text = ""
+    toggle.BorderSizePixel = 0
+    toggle.Parent = holder
+    Instance.new("UICorner", toggle).CornerRadius = UDim.new(1, 0)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.fromOffset(18, 18)
+    knob.Position = UDim2.new(0, 3, .5, -9)
+    knob.BackgroundColor3 = Color3.new(1, 1, 1)
+    knob.BorderSizePixel = 0
+    knob.Parent = toggle
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+    local status = Instance.new("TextLabel")
+    status.BackgroundTransparency = 1
+    status.Size = UDim2.new(0, 50, 1, 0)
+    status.Position = UDim2.new(1, 6, 0, 0)
+    status.Font = Enum.Font.GothamBold
+    status.Text = "OFF"
+    status.TextColor3 = Color3.fromRGB(255, 80, 80)
+    status.TextSize = 13
+    status.Parent = toggle
+
+    toggle.MouseButton1Click:Connect(function()
+        ESPConfig[configKey] = not ESPConfig[configKey]
+        animarToggle(toggle, knob, status, ESPConfig[configKey])
+    end)
+end
+
+-- Criando as opções no menu
+criarEspToggle("ESP Quadrado", "Quadrado")
+criarEspToggle("ESP Aura (Chams)", "Aura")
+criarEspToggle("ESP Nome", "Nome")
+criarEspToggle("ESP Esqueleto", "Esqueleto")
+criarEspToggle("ESP Linhas (Tracers)", "Linhas")
+
+-- [[ LÓGICA DE ARRASTAR, MINIMIZAR E FECHAR ]]
+local dragging, startPos, startMouse
+top.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        dragging = true; startMouse = i.Position; startPos = main.Position
+    end
+end)
+UIS.InputChanged:Connect(function(i)
+    if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+        local delta = i.Position - startMouse
+        main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+UIS.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+end)
+
+local minimized = false
+minimize.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    if minimized then  
+        TweenService:Create(content, TweenInfo.new(.25), {Size = UDim2.new(1, -16, 0, 0)}):Play()  
+        TweenService:Create(main, TweenInfo.new(.25), {Size = UDim2.fromOffset(250, 48)}):Play()  
+    else  
+        TweenService:Create(main, TweenInfo.new(.25), {Size = UDim2.fromOffset(250, 280)}):Play()  
+        task.wait(.05)  
+        TweenService:Create(content, TweenInfo.new(.25), {Size = UDim2.new(1, -16, 1, -52)}):Play()  
+    end
+end)
+
+close.MouseButton1Click:Connect(function()
+    TweenService:Create(main, TweenInfo.new(.2), {Size = UDim2.fromOffset(0, 0)}):Play()
+    task.wait(.2); gui:Destroy()
+end)
+
+TweenService:Create(main, TweenInfo.new(.35, Enum.EasingStyle.Back), {Size = UDim2.fromOffset(250, 280)}):Play()
+
+-- ====================================================================
+-- [[ MOTOR SISTEMA DE ESP (DRAWING & HIGHLIGHTS) ]]
+-- ====================================================================
+
+local cache = {}
+
+local function criarEstruturaESP(plr)
+    if cache[plr] then return end
+
+    local estruturas = {
+        Box = Drawing.new("Square"),
+        Name = Drawing.new("Text"),
+        Tracer = Drawing.new("Line"),
+        Skeleton = {},
+        Highlight = Instance.new("Highlight")
+    }
+
+    estruturas.Box.Thickness = 1.5
+    estruturas.Box.Filled = false
+    estruturas.Box.Color = ESPConfig.CorGeral
+
+    estruturas.Name.Size = 14
+    estruturas.Name.Center = true
+    estruturas.Name.Outline = true
+    estruturas.Name.Color = Color3.new(1, 1, 1)
+
+    estruturas.Tracer.Thickness = 1
+    estruturas.Tracer.Color = ESPConfig.CorGeral
+
+    for i = 1, 10 do
+        local l = Drawing.new("Line")
+        l.Thickness = 1.5
+        l.Color = ESPConfig.CorGeral
+        table.insert(estruturas.Skeleton, l)
+    end
+
+    estruturas.Highlight.FillColor = ESPConfig.CorAura
+    estruturas.Highlight.FillTransparency = 0.5
+    estruturas.Highlight.OutlineColor = Color3.new(1, 1, 1)
+    estruturas.Highlight.OutlineTransparency = 0
+
+    cache[plr] = estruturas
+end
+
+local function limparESP(plr)
+    if cache[plr] then
+        cache[plr].Box:Remove()
+        cache[plr].Name:Remove()
+        cache[plr].Tracer:Remove()
+        for _, linha in pairs(cache[plr].Skeleton) do linha:Remove() end
+        if cache[plr].Highlight then cache[plr].Highlight:Destroy() end
+        cache[plr] = nil
+    end
+end
+
+Players.PlayerAdded:Connect(criarEstruturaESP)
+Players.PlayerRemoving:Connect(limparESP)
+for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then criarEstruturaESP(p) end end
+
+-- [[ LOOP DE RENDERIZAÇÃO EM TEMPO REAL ]]
+RunService.RenderStepped:Connect(function()
+    for plr, esp in pairs(cache) do
+        local char = plr.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local head = char and char:FindFirstChild("Head")
+
+        -- LINHA CORRIGIDA AQUI:
+        if hrp and hum and head and hum.Health > 0 then
+            local hrpPos, naTela = Camera:WorldToViewportPoint(hrp.Position)
+
+            -- 1. ESP QUADRADO & NOME
+            if naTela and (ESPConfig.Quadrado or ESPConfig.Nome) then
+                local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 2, 0))
+                local legPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+                
+                local boxHeight = math.abs(headPos.Y - legPos.Y)
+                local boxWidth = boxHeight * 0.6
+
+                if ESPConfig.Quadrado then
+                    esp.Box.Size = Vector2.new(boxWidth, boxHeight)
+                    esp.Box.Position = Vector2.new(hrpPos.X - boxWidth / 2, hrpPos.Y - boxHeight / 2)
+                    esp.Box.Visible = true
+                else esp.Box.Visible = false end
+
+                if ESPConfig.Nome then
+                    esp.Name.Text = plr.Name .. " [" .. math.floor(hum.Health) .. " HP]"
+                    esp.Name.Position = Vector2.new(hrpPos.X, (hrpPos.Y - boxHeight / 2) - 16)
+                    esp.Name.Visible = true
+                else esp.Name.Visible = false end
+            else
+                esp.Box.Visible = false
+                esp.Name.Visible = false
+            end
+
+            -- 2. ESP LINHAS (TRACERS)
+            if naTela and ESPConfig.Linhas then
+                esp.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                esp.Tracer.To = Vector2.new(hrpPos.X, hrpPos.Y)
+                esp.Tracer.Visible = true
+            else
+                esp.Tracer.Visible = false
+            end
+
+            -- 3. ESP AURA (HIGHLIGHTS)
+            if ESPConfig.Aura then
+                if esp.Highlight.Parent ~= char then
+                    esp.Highlight.Parent = char
+                end
+                esp.Highlight.Enabled = true
+            else
+                esp.Highlight.Enabled = false
+            end
+
+            -- 4. ESP ESQUELETO (R6 e R15)
+            if naTela and ESPConfig.Esqueleto then
+                local juntas = {}
+                local n = 1
+
+                local partesR15 = {"Head", "UpperTorso", "LowerTorso", "LeftUpperArm", "LeftLowerArm", "RightUpperArm", "RightLowerArm", "LeftUpperLeg", "LeftLowerLeg", "RightUpperLeg", "RightLowerLeg"}
+                local usarPartes = char:FindFirstChild("UpperTorso") and partesR15 or {"Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg"}
+
+                for _, nomePart in pairs(usarPartes) do
+                    local p = char:FindFirstChild(nomePart)
+                    if p then
+                        local vPos, vOn = Camera:WorldToViewportPoint(p.Position)
+                        juntas[nomePart] = {Pos = Vector2.new(vPos.X, vPos.Y), On = vOn}
+                    end
+                end
+
+                local function conectar(p1, p2)
+                    local j1, j2 = juntas[p1], juntas[p2]
+                    if j1 and j2 and j1.On and j2.On and esp.Skeleton[n] then
+                        esp.Skeleton[n].From = j1.Pos
+                        esp.Skeleton[n].To = j2.Pos
+                        esp.Skeleton[n].Visible = true
+                        n = n + 1
+                    end
+                end
+
+                if char:FindFirstChild("UpperTorso") then
+                    conectar("Head", "UpperTorso")
+                    conectar("UpperTorso", "LowerTorso")
+                    conectar("UpperTorso", "LeftUpperArm")
+                    conectar("LeftUpperArm", "LeftLowerArm")
+                    conectar("UpperTorso", "RightUpperArm")
+                    conectar("RightUpperArm", "RightLowerArm")
+                    conectar("LowerTorso", "LeftUpperLeg")
+                    conectar("LeftUpperLeg", "LeftLowerLeg")
+                    conectar("LowerTorso", "RightUpperLeg")
+                    conectar("RightUpperLeg", "RightLowerLeg")
+                else
+                    conectar("Head", "Torso")
+                    conectar("Torso", "Left Arm")
+                    conectar("Torso", "Right Arm")
+                    conectar("Torso", "Left Leg")
+                    conectar("Torso", "Right Leg")
+                end
+
+                for i = n, #esp.Skeleton do esp.Skeleton[i].Visible = false end
+            else
+                for _, linha in pairs(esp.Skeleton) do linha.Visible = false end
+            end
+
+        else
+            esp.Box.Visible = false
+            esp.Name.Visible = false
+            esp.Tracer.Visible = false
+            esp.Highlight.Enabled = false
+            for _, linha in pairs(esp.Skeleton) do linha.Visible = false end
+        end
+    end
+end)
