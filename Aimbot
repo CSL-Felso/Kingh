@@ -1,0 +1,350 @@
+-- [[ SERVIÇOS DO ROBLOX ]]
+local TweenService = game:GetService("TweenService")
+local UIS = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Limpeza de instâncias antigas
+pcall(function()
+    CoreGui:FindFirstChild("MagicAimbotUI"):Destroy()
+    RunService:UnbindFromRenderStep("MagicAimbotPipeline")
+end)
+
+-- [[ CONFIGURAÇÕES DO AIMBOT ]]
+local AimbotConfig = {
+    Ativo = false,
+    MostrarFOV = false,
+    FOV = 120, -- Aumentado um pouco para dar mais margem pro magnetismo
+    Suavidade = 4, -- Controle base do arrasto
+    AlvoParte = "Head"
+}
+
+-- [[ CÍRCULO DO FOV (DRAWING API) ]]
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 1.5
+FOVCircle.Filled = false
+FOVCircle.Transparency = 0.5
+FOVCircle.Color = Color3.fromRGB(0, 170, 255)
+FOVCircle.Visible = false
+
+-- [[ CONFIGURAÇÕES DE TEMA DA UI ]]
+local Tema = {
+    FundoPrincipal = Color3.fromRGB(20, 20, 25),
+    FundoSecundario = Color3.fromRGB(30, 30, 35),
+    Destaque = Color3.fromRGB(0, 170, 255),
+    Texto = Color3.fromRGB(255, 255, 255),
+    ToggleOff = Color3.fromRGB(65, 65, 70),
+    ToggleOn = Color3.fromRGB(0, 170, 255)
+}
+
+-- [[ BASE DA INTERFACE ]]
+local gui = Instance.new("ScreenGui")
+gui.Name = "MagicAimbotUI"
+gui.ResetOnSpawn = false
+gui.Parent = CoreGui
+
+local main = Instance.new("Frame")
+main.Size = UDim2.fromOffset(0, 0)
+main.Position = UDim2.new(0.5, -125, 0.5, -160)
+main.BackgroundColor3 = Tema.FundoPrincipal
+main.BorderSizePixel = 0
+main.ClipsDescendants = true
+main.Parent = gui
+
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
+local stroke = Instance.new("UIStroke", main)
+stroke.Color = Tema.Destaque
+stroke.Thickness = 1.5
+
+local top = Instance.new("Frame")
+top.Size = UDim2.new(1, 0, 0, 40)
+top.BackgroundColor3 = Tema.FundoSecundario
+top.BorderSizePixel = 0
+top.Parent = main
+Instance.new("UICorner", top).CornerRadius = UDim.new(0, 10)
+
+local fix = Instance.new("Frame")
+fix.Size = UDim2.new(1, 0, 0, 10)
+fix.Position = UDim2.new(0, 0, 1, -10)
+fix.BackgroundColor3 = top.BackgroundColor3
+fix.BorderSizePixel = 0
+fix.Parent = top
+
+local title = Instance.new("TextLabel")
+title.BackgroundTransparency = 1
+title.Size = UDim2.new(0, 150, 1, 0)
+title.Position = UDim2.new(0, 15, 0, 0)
+title.Font = Enum.Font.GothamBold
+title.Text = "MAGIC AIM"
+title.TextSize = 16
+title.TextColor3 = Tema.Destaque
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = top
+
+local minimize = Instance.new("TextButton")
+minimize.Size = UDim2.fromOffset(30, 30)
+minimize.Position = UDim2.new(1, -65, 0, 5)
+minimize.BackgroundTransparency = 1
+minimize.Font = Enum.Font.GothamBold
+minimize.Text = "—"
+minimize.TextSize = 16
+minimize.TextColor3 = Tema.Texto
+minimize.Parent = top
+
+local close = Instance.new("TextButton")
+close.Size = UDim2.fromOffset(30, 30)
+close.Position = UDim2.new(1, -35, 0, 5)
+close.BackgroundTransparency = 1
+close.Font = Enum.Font.GothamBold
+close.Text = "✕"
+close.TextSize = 15
+close.TextColor3 = Tema.Texto
+close.Parent = top
+
+local content = Instance.new("Frame")
+content.BackgroundTransparency = 1
+content.Size = UDim2.new(1, -16, 1, -50)
+content.Position = UDim2.new(0, 8, 0, 46)
+content.Parent = main
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, 0, 1, 0)
+scroll.ScrollBarThickness = 3
+scroll.ScrollBarImageColor3 = Tema.Destaque
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.Parent = content
+
+local listLayout = Instance.new("UIListLayout", scroll)
+listLayout.Padding = UDim.new(0, 6)
+listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    scroll.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
+end)
+
+-- [[ ELEMENTOS DA UI ]]
+local function CriarToggle(texto, estadoInicial, callback)
+    local holder = Instance.new("Frame")
+    holder.Size = UDim2.new(1, -10, 0, 40)
+    holder.BackgroundColor3 = Tema.FundoSecundario
+    holder.BorderSizePixel = 0
+    holder.Parent = scroll
+    Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 6)
+
+    local txt = Instance.new("TextLabel")
+    txt.BackgroundTransparency = 1
+    txt.Size = UDim2.new(1, -70, 1, 0)
+    txt.Position = UDim2.new(0, 12, 0, 0)
+    txt.Font = Enum.Font.GothamSemibold
+    txt.Text = texto
+    txt.TextColor3 = Tema.Texto
+    txt.TextSize = 13
+    txt.TextXAlignment = Enum.TextXAlignment.Left
+    txt.Parent = holder
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.fromOffset(40, 20)
+    btn.Position = UDim2.new(1, -52, 0.5, -10)
+    btn.BackgroundColor3 = estadoInicial and Tema.ToggleOn or Tema.ToggleOff
+    btn.Text = ""
+    btn.AutoButtonColor = false
+    btn.Parent = holder
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.fromOffset(16, 16)
+    knob.Position = estadoInicial and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+    knob.BackgroundColor3 = Color3.new(1, 1, 1)
+    knob.Parent = btn
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+    local estadoLocal = estadoInicial
+
+    btn.MouseButton1Click:Connect(function()
+        estadoLocal = not estadoLocal
+        if estadoLocal then
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Tema.ToggleOn}):Play()
+            TweenService:Create(knob, TweenInfo.new(0.2), {Position = UDim2.new(1, -18, 0.5, -8)}):Play()
+        else
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Tema.ToggleOff}):Play()
+            TweenService:Create(knob, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -8)}):Play()
+        end
+        if callback then callback(estadoLocal) end
+    end)
+end
+
+local function CriarTextBox(texto, valorPadrao, callback)
+    local holder = Instance.new("Frame")
+    holder.Size = UDim2.new(1, -10, 0, 40)
+    holder.BackgroundColor3 = Tema.FundoSecundario
+    holder.BorderSizePixel = 0
+    holder.Parent = scroll
+    Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 6)
+
+    local txt = Instance.new("TextLabel")
+    txt.BackgroundTransparency = 1
+    txt.Size = UDim2.new(1, -90, 1, 0)
+    txt.Position = UDim2.new(0, 12, 0, 0)
+    txt.Font = Enum.Font.GothamSemibold
+    txt.Text = texto
+    txt.TextColor3 = Tema.Texto
+    txt.TextSize = 13
+    txt.TextXAlignment = Enum.TextXAlignment.Left
+    txt.Parent = holder
+
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.fromOffset(60, 22)
+    box.Position = UDim2.new(1, -72, 0.5, -11)
+    box.BackgroundColor3 = Tema.FundoPrincipal
+    box.Font = Enum.Font.GothamBold
+    box.Text = tostring(valorPadrao)
+    box.TextColor3 = Tema.Destaque
+    box.TextSize = 13
+    box.ClearTextOnFocus = false
+    box.Parent = holder
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 4)
+    
+    local bStroke = Instance.new("UIStroke", box)
+    bStroke.Color = Tema.ToggleOff
+    bStroke.Thickness = 1
+
+    box.FocusLost:Connect(function()
+        if callback then callback(box.Text) end
+    end)
+end
+
+CriarToggle("Ativar Aimbot (Segurar Botão)", false, function(v) AimbotConfig.Ativo = v end)
+CriarToggle("Exibir Círculo do FOV", false, function(v) AimbotConfig.MostrarFOV = v end)
+
+CriarTextBox("Tamanho do FOV", AimbotConfig.FOV, function(texto)
+    local num = tonumber(texto)
+    if num then AimbotConfig.FOV = num else AimbotConfig.FOV = 100 end
+end)
+
+CriarTextBox("Suavidade (Smooth)", AimbotConfig.Suavidade, function(texto)
+    local num = tonumber(texto)
+    if num then AimbotConfig.Suavidade = math.max(1, num) else AimbotConfig.Suavidade = 4 end
+end)
+
+CriarTextBox("Parte do Alvo", AimbotConfig.AlvoParte, function(texto)
+    if texto == "Head" or texto == "HumanoidRootPart" then
+        AimbotConfig.AlvoParte = texto
+    else
+        AimbotConfig.AlvoParte = "Head"
+    end
+end)
+
+-- [[ LÓGICA DO ALVO MAIS PRÓXIMO ]]
+local function pegarJogadorMaisProximo()
+    local maiorDistancia = AimbotConfig.FOV
+    local jogadorAlvo = nil
+    local mousePos = UIS:GetMouseLocation()
+
+    for _, jogador in pairs(Players:GetPlayers()) do
+        if jogador ~= LocalPlayer and jogador.Character then
+            local caractere = jogador.Character
+            local parteCorpo = caractere:FindFirstChild(AimbotConfig.AlvoParte)
+            local humanoide = caractere:FindFirstChildOfClass("Humanoid")
+
+            if parteCorpo and humanoide and humanoide.Health > 0 then
+                local posicaoTela, naTela = Camera:WorldToViewportPoint(parteCorpo.Position)
+
+                if naTela then
+                    local distanciaDoMouse = (Vector2.new(posicaoTela.X, posicaoTela.Y) - mousePos).Magnitude
+                    if distanciaDoMouse < maiorDistancia then
+                        maiorDistancia = distanciaDoMouse
+                        jogadorAlvo = parteCorpo
+                    end
+                end
+            end
+        end
+    end
+    return jogadorAlvo
+end
+
+-- [[ PROCESSAMENTO VISUAL DO FOV ]]
+RunService.RenderStepped:Connect(function()
+    if AimbotConfig.MostrarFOV then
+        FOVCircle.Position = UIS:GetMouseLocation()
+        FOVCircle.Radius = AimbotConfig.FOV
+        FOVCircle.Visible = true
+    else
+        FOVCircle.Visible = false
+    end
+end)
+
+-- [[ PIPELINE DO AIM ASSIST SIMULADO (CONSOLE LOGIC) ]]
+RunService:BindToRenderStep("MagicAimbotPipeline", Enum.RenderPriority.Camera.Value + 1, function()
+    -- Executa apenas se estiver ativo E clicando com o Botão Direito (MouseButton2) ou Esquerdo (MouseButton1)
+    if AimbotConfig.Ativo and (UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) or UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)) then
+        local alvo = pegarJogadorMaisProximo()
+        if alvo then
+            local mousePos = UIS:GetMouseLocation()
+            local posicaoTela, naTela = Camera:WorldToViewportPoint(alvo.Position)
+            
+            if naTela then
+                -- Distância real em pixels entre o crosshair e o osso do inimigo
+                local distanciaDoMouse = (Vector2.new(posicaoTela.X, posicaoTela.Y) - mousePos).Magnitude
+                
+                -- Proximidade vai de 0.0 (exatamente no centro) até 1.0 (na borda limite do FOV)
+                local proximidade = math.clamp(distanciaDoMouse / AimbotConfig.FOV, 0, 1)
+                
+                -- MATEMÁTICA DO AIM ASSIST (Desaceleração Dinâmica):
+                -- Quanto maior a proximidade (mais longe do centro), menor o amortecimento -> Câmera corre rápido.
+                -- Quanto menor a proximidade (perto do centro), maior o amortecimento -> Câmera ganha peso magnético.
+                local alphaBase = 1 / AimbotConfig.Suavidade
+                local fatorConsole = alphaBase * (0.2 + (proximidade * 0.8))
+                
+                -- Aplica a rotação pura da câmera via CFrame com o peso corrigido
+                local direcaoAlvo = CFrame.new(Camera.CFrame.Position, alvo.Position)
+                Camera.CFrame = Camera.CFrame:Lerp(direcaoAlvo, fatorConsole)
+            end
+        end
+    end
+end)
+
+-- [[ CONTROLADORES DA JANELA ]]
+local dragging, startPos, startMouse
+top.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        dragging = true; startMouse = i.Position; startPos = main.Position
+    end
+end)
+UIS.InputChanged:Connect(function(i)
+    if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+        local delta = i.Position - startMouse
+        main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+UIS.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+end)
+
+local minimized = false
+minimize.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    if minimized then
+        TweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.fromOffset(250, 40)}):Play()
+        content.Visible = false
+    else
+        TweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.fromOffset(250, 320)}):Play()
+        task.wait(0.1)
+        content.Visible = true
+    end
+end)
+
+close.MouseButton1Click:Connect(function()
+    RunService:UnbindFromRenderStep("MagicAimbotPipeline")
+    FOVCircle:Remove()
+    TweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.fromOffset(0, 0)}):Play()
+    task.wait(0.25)
+    gui:Destroy()
+end)
+
+TweenService:Create(main, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.fromOffset(250, 320)}):Play()
